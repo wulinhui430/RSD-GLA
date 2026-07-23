@@ -26,14 +26,11 @@ def _repo_root() -> str:
 def _resolve_known_dataset(name: str) -> Optional[Tuple[str, str]]:
     root = _repo_root()
     mapping = {
-        "brats": (os.path.join(root, "data", "BraTS_train_png", "dataset_brats.csv"), os.path.join(root, "data", "BraTS_train_png")),
-        "liverct": (os.path.join(root, "data", "liverct", "dataset_livect.csv"), os.path.join(root, "data", "liverct")),
-        "oct": (os.path.join(root, "data", "oct2017", "dataset_oct2017.csv"), os.path.join(root, "data", "oct2017")),
-        "resc": (os.path.join(root, "data", "resc", "dataset_resc.csv"), os.path.join(root, "data", "resc")),
-        "rsna": (
-            os.path.join(root, "data", "rsna-pneumonia-processed-dataset", "dataset_rsna.csv"),
-            os.path.join(root, "data", "rsna-pneumonia-processed-dataset"),
-        ),
+        "brats": (os.path.join(root, "data", "brats", "dataset.csv"), os.path.join(root, "data", "brats")),
+        "liverct": (os.path.join(root, "data", "liverct", "dataset.csv"), os.path.join(root, "data", "liverct")),
+        "oct": (os.path.join(root, "data", "oct", "dataset.csv"), os.path.join(root, "data", "oct")),
+        "resc": (os.path.join(root, "data", "resc", "dataset.csv"), os.path.join(root, "data", "resc")),
+        "rsna": (os.path.join(root, "data", "rsna", "dataset.csv"), os.path.join(root, "data", "rsna")),
     }
     key = str(name).strip()
     return mapping.get(key)
@@ -373,8 +370,8 @@ def save_checkpoint(path: str, model: RSDGLAVisualEncoder, optimizer: torch.opti
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    default_csv = "data/BraTS_train_png/dataset_brats.csv"
-    default_base_dir = "data/BraTS_train_png"
+    default_csv = "data/brats/dataset.csv"
+    default_base_dir = "data/brats"
     parser.add_argument("--csv", default=default_csv)
     parser.add_argument("--base_dir", default=default_base_dir)
     parser.add_argument("--cache_dir", default="./models")

@@ -12,10 +12,10 @@
 </p>
 
 <p>
-  :medical_symbol: Medical Images -> 
-  :brain: Frozen CLIP -> 
-  :jigsaw: Rank-Sparse Adapters -> 
-  :compass: Sinkhorn LVPA + :globe_with_meridians: Cosine GTSA -> 
+  :medical_symbol: Medical Images ->
+  :brain: Frozen CLIP ->
+  :jigsaw: Rank-Sparse Adapters ->
+  :compass: Sinkhorn LVPA + :globe_with_meridians: Cosine GTSA ->
   :fire: Anomaly Maps
 </p>
 
@@ -23,15 +23,16 @@
 
 RSD-GLA is a parameter-efficient few-shot medical anomaly detection framework. It keeps the CLIP visual backbone frozen and learns lightweight adapters for rank-sparse feature disentanglement, mask-guided local prototype alignment, and global text-semantic alignment.
 
-The released implementation supports:
+This repository provides the minimal code required for training and evaluation. Raw datasets, model weights, logs, checkpoints, and visualization outputs are intentionally excluded.
 
-- BraTS
-- OCT2017
-- LiverCT
-- RESC
-- RSNA
+## Highlights
 
-The repository contains the minimal training and evaluation code. Raw datasets, model weights, logs, checkpoints, and visualization outputs are intentionally excluded.
+- Parameter-efficient adaptation on top of frozen CLIP.
+- Rank-sparse feature disentanglement with lightweight adapters.
+- Mask-guided local visual prototype alignment via Sinkhorn optimal transport.
+- Global text semantic alignment with cosine matching.
+- Support for BraTS, OCT2017, LiverCT, RESC, and RSNA-style datasets.
+- Generic dataset paths such as `data/brats/dataset.csv`, so the code is not tied to a private local directory structure.
 
 ## 1. Clone the Repository
 
@@ -69,38 +70,38 @@ Windows PowerShell:
 .venv\Scripts\Activate.ps1
 ```
 
-Install the dependencies:
+Install dependencies:
 
 ```bash
 pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-CUDA is recommended for training. To verify the PyTorch installation:
+Check PyTorch and CUDA:
 
 ```bash
 python -c "import torch; print('PyTorch:', torch.__version__); print('CUDA:', torch.cuda.is_available())"
 ```
 
-## 3. Prepare the CLIP Weights
+## 3. Prepare CLIP Weights
 
-The implementation uses a frozen `CLIP ViT-L/14` visual encoder and a frozen OpenAI CLIP text encoder.
+The implementation uses a frozen CLIP ViT-L/14 visual encoder and a frozen OpenAI CLIP text encoder.
 
 ### 3.1 Vision encoder
 
-Because the code uses local loading by default, make the Hugging Face CLIP files available locally. For example:
+The code loads the Hugging Face CLIP vision model locally by default. You can download it into `models/`:
 
 ```bash
 python -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id='openai/clip-vit-large-patch14', local_dir='models/clip-vit-large-patch14')"
 ```
 
-Then train with:
+Then provide the local path:
 
 ```bash
 python train_rsd_gla.py --dataset_name brats --clip_model models/clip-vit-large-patch14
 ```
 
-Alternatively, place the model in your local Hugging Face cache and keep the default `--clip_model` value.
+If the model already exists in the Hugging Face cache, the default `--clip_model openai/clip-vit-large-patch14` can also be used.
 
 ### 3.2 Text encoder
 
@@ -110,7 +111,7 @@ When text alignment is enabled, place the OpenAI CLIP checkpoint at:
 ViT-L-14-336px.pt
 ```
 
-or provide another path explicitly:
+or pass a custom path:
 
 ```bash
 python train_rsd_gla.py \
@@ -118,39 +119,49 @@ python train_rsd_gla.py \
   --openai_clip_ckpt models/ViT-L-14-336px.pt
 ```
 
-The bundled BPE vocabulary is stored at `src/bpe_simple_vocab_16e6.txt.gz`.
+The BPE vocabulary is included at `src/bpe_simple_vocab_16e6.txt.gz`.
 
-## 4. Download and Organize the Datasets
+## 4. Download and Organize Datasets
 
-Download the datasets from their official sources and preprocess them into PNG/JPEG images, masks, and CSV metadata. The repository does not redistribute raw medical data.
+Download datasets from their official sources and preprocess them into image files, mask files, and CSV metadata. This repository does not redistribute medical data.
 
-The default directory layout is:
+The default layout uses simple lowercase dataset names and a shared CSV filename:
 
 ```text
 RSD-GLA/
-├── train_rsd_gla.py
-├── requirements.txt
-├── README.md
-├── src/
-├── data/
-│   ├── BraTS_train_png/
-│   │   └── dataset_brats.csv
-│   ├── oct2017/
-│   │   └── dataset_oct2017.csv
-│   ├── liverct/
-│   │   └── dataset_livect.csv
-│   ├── resc/
-│   │   └── dataset_resc.csv
-│   └── rsna-pneumonia-processed-dataset/
-│       └── dataset_rsna.csv
-└── models/
+|-- train_rsd_gla.py
+|-- requirements.txt
+|-- README.md
+|-- src/
+|-- data/
+|   |-- brats/
+|   |   |-- dataset.csv
+|   |   |-- images/
+|   |   |-- masks/
+|   |-- oct/
+|   |   |-- dataset.csv
+|   |   |-- images/
+|   |   |-- masks/
+|   |-- liverct/
+|   |   |-- dataset.csv
+|   |   |-- images/
+|   |   |-- masks/
+|   |-- resc/
+|   |   |-- dataset.csv
+|   |   |-- images/
+|   |   |-- masks/
+|   |-- rsna/
+|   |   |-- dataset.csv
+|   |   |-- images/
+|   |   |-- masks/
+|-- models/
 ```
 
-The folder and CSV names are conventions, not hard requirements. If you use different names, pass `--csv` and `--base_dir` explicitly.
+These names are only convenient defaults. Users may place data anywhere and use any dataset name by passing `--csv` and `--base_dir` explicitly.
 
 ### 4.1 CSV format
 
-Each CSV must contain at least these columns:
+Each CSV must contain at least:
 
 ```text
 split,image_path,mask_path,label
@@ -167,38 +178,40 @@ Required conventions:
 - `label=1` denotes an abnormal image.
 - Abnormal samples must provide a valid `mask_path`, because lesion prototypes are mask-guided.
 - `image_path` and `mask_path` are resolved relative to `base_dir`.
-- For datasets with bounding boxes, convert the boxes into rectangular masks before training.
+- For datasets with bounding boxes, convert boxes into rectangular masks before training.
 
-### 4.2 Built-in dataset aliases
+### 4.2 Built-in aliases
 
-The following aliases automatically resolve to the default paths:
+The following aliases automatically resolve to generic default paths:
 
 | Alias | CSV path | Base directory |
 |---|---|---|
-| `brats` | `data/BraTS_train_png/dataset_brats.csv` | `data/BraTS_train_png` |
-| `oct` | `data/oct2017/dataset_oct2017.csv` | `data/oct2017` |
-| `liverct` | `data/liverct/dataset_livect.csv` | `data/liverct` |
-| `resc` | `data/resc/dataset_resc.csv` | `data/resc` |
-| `rsna` | `data/rsna-pneumonia-processed-dataset/dataset_rsna.csv` | `data/rsna-pneumonia-processed-dataset` |
+| `brats` | `data/brats/dataset.csv` | `data/brats` |
+| `oct` | `data/oct/dataset.csv` | `data/oct` |
+| `liverct` | `data/liverct/dataset.csv` | `data/liverct` |
+| `resc` | `data/resc/dataset.csv` | `data/resc` |
+| `rsna` | `data/rsna/dataset.csv` | `data/rsna` |
 
-Example with a custom dataset location:
+Custom dataset example:
 
 ```bash
 python train_rsd_gla.py \
   --dataset_name my_dataset \
-  --csv /path/to/my_dataset.csv \
+  --csv /path/to/my_dataset/metadata.csv \
   --base_dir /path/to/my_dataset
 ```
 
-## 5. Train the Model
+## 5. Train
 
-Run commands from the repository root:
+Run commands from the repository root.
+
+Default BraTS-style run:
 
 ```bash
 python train_rsd_gla.py --dataset_name brats
 ```
 
-Other datasets:
+Other built-in aliases:
 
 ```bash
 python train_rsd_gla.py --dataset_name oct
@@ -207,7 +220,7 @@ python train_rsd_gla.py --dataset_name resc
 python train_rsd_gla.py --dataset_name rsna
 ```
 
-A typical few-shot configuration is:
+Typical few-shot configuration:
 
 ```bash
 python train_rsd_gla.py \
@@ -219,25 +232,25 @@ python train_rsd_gla.py \
   --seed 0
 ```
 
-The current implementation follows the paper protocol:
+The implementation follows the paper protocol:
 
-- The CLIP backbone is frozen.
-- Prototypes are constructed from abnormal support samples using masks.
-- Local prototype alignment uses Sinkhorn optimal transport only.
-- Global text alignment uses cosine similarity only.
-- Training directly uses the sampled support set; there is no separate query set.
-- The image-level anomaly score uses top-k aggregation with a default ratio of `0.05`.
+- Frozen CLIP backbone.
+- Mask-guided abnormal prototypes.
+- Sinkhorn-based local visual prototype alignment.
+- Cosine-based global text semantic alignment.
+- Direct support-set optimization, without a separate query-set branch.
+- Top-k image-level anomaly scoring with default ratio `0.05`.
 
-Checkpoints and logs are generated automatically:
+Outputs are written to:
 
 ```text
 checkpoints/best_rsd_gla_<dataset>.pt
 logs/rsd_gla_train_<dataset>_<timestamp>.log
 ```
 
-## 6. Evaluate a Trained Checkpoint
+## 6. Evaluate
 
-Evaluate a saved checkpoint:
+Evaluate a checkpoint:
 
 ```bash
 python train_rsd_gla.py \
@@ -246,7 +259,7 @@ python train_rsd_gla.py \
   --load_path checkpoints/best_rsd_gla_brats.pt
 ```
 
-Save per-image anomaly scores:
+Save image-level anomaly scores:
 
 ```bash
 python train_rsd_gla.py \
@@ -256,17 +269,13 @@ python train_rsd_gla.py \
   --eval_save_scores_path scores/brats_scores.csv
 ```
 
-The evaluator reports:
+The evaluator reports accuracy, precision, recall, F1-score, image-level AUROC, and, when enabled, pixel-level AUROC and Dice.
 
-- Accuracy
-- Precision
-- Recall
-- F1-score
-- Image-level AUROC
-- Pixel-level AUROC when segmentation metrics are enabled
-- Dice score when segmentation metrics are enabled
+For datasets without pixel-level annotations, disable segmentation metrics:
 
-For OCT2017, segmentation metrics are disabled by default when no explicit `--eval_seg_metrics` option is provided. Add `--eval_seg_metrics` when pixel-level evaluation is available.
+```bash
+python train_rsd_gla.py --dataset_name rsna --no-eval_seg_metrics
+```
 
 ## 7. Useful Options
 
@@ -274,27 +283,25 @@ For OCT2017, segmentation metrics are disabled by default when no explicit `--ev
 python train_rsd_gla.py --help
 ```
 
-Common options:
-
 | Option | Purpose |
 |---|---|
-| `--dataset_name` | Dataset alias or custom dataset name |
+| `--dataset_name` | Built-in alias or custom dataset name |
 | `--csv` | Custom metadata CSV path |
 | `--base_dir` | Root directory for image and mask paths |
 | `--k_shot` | Number of normal and abnormal support samples |
 | `--epochs` | Number of training epochs |
-| `--steps_per_epoch` | Support-set optimization steps per epoch |
+| `--steps_per_epoch` | Optimization steps per epoch |
 | `--device` | `cuda` or `cpu` |
 | `--seed` | Random seed |
 | `--eval_only` | Skip training and evaluate a checkpoint |
 | `--load_path` | Checkpoint used for evaluation or initialization |
-| `--eval_save_scores_path` | CSV path for saving image-level scores |
+| `--eval_save_scores_path` | Save image-level scores to CSV |
 
 ## 8. Troubleshooting
 
 ### Dataset files cannot be found
 
-Check that `image_path` and `mask_path` are relative to `--base_dir`, and that abnormal samples have masks.
+Check that `image_path` and `mask_path` are relative to `--base_dir`, and that every abnormal sample has a valid mask.
 
 ### CLIP files cannot be loaded
 
@@ -309,7 +316,7 @@ python train_rsd_gla.py \
 
 ### CUDA is unavailable
 
-Run a small smoke test on CPU:
+Run a CPU smoke test:
 
 ```bash
 python train_rsd_gla.py --dataset_name brats --device cpu --epochs 1 --steps_per_epoch 1
