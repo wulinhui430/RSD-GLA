@@ -1,0 +1,9 @@
+torch
+torchvision
+transformers
+numpy
+pandas
+scikit-learn
+Pillow
+regex
+ftfy
